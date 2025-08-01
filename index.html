@@ -19,11 +19,13 @@
   <button onclick="submitShift()">登録</button>
 
   <h2>シフト一覧</h2>
-  <table id="shiftTable">
-    <tr><th>名前</th><th>日付</th><th>時間</th></tr>
-  </table>
+  <label>年: <input type="number" id="year" value="2025"></label>
+<label>月: <input type="number" id="month" value="8" min="1" max="12"></label>
+<button onclick="generateCalendar()">カレンダー生成</button>
+
 
   <script>
+    let currentDates = [];
     const SUPABASE_URL = 'https://ppmbtoptcxelwewwompk.supabase.co'; // ←置き換えてください
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwbWJ0b3B0Y3hlbHdld3dvbXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwNjE0NjcsImV4cCI6MjA2OTYzNzQ2N30.Q01_d75sc3j362CMulQwkhtp0SuTzU86X2ElmXPU518';             // ←置き換えてください
 
@@ -49,6 +51,74 @@
         row.insertCell().textContent = shift.shift_time;
       });
     }
+
+    function generateCalendar() {
+  const year = parseInt(document.getElementById('year').value);
+  const month = parseInt(document.getElementById('month').value);
+
+  if (!year || !month || month < 1 || month > 12) {
+    alert("正しい年と月を入力してください");
+    return;
+  }
+
+  async function fetchShiftsForMonth(year, month) {
+  const monthStr = String(month).padStart(2, '0');
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/shifts?select=*`, {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`
+    }
+  });
+  const data = await res.json();
+
+  const filtered = data.filter(item => {
+    return item.date.startsWith(`${year}-${monthStr}`);
+  });
+
+  const userMap = {};
+  filtered.forEach(item => {
+    if (!userMap[item.username]) {
+      userMap[item.username] = {};
+    }
+    userMap[item.username][item.date] = item.shift_time;
+  });
+
+  const table = document.getElementById("shiftTable");
+
+  for (const [username, shifts] of Object.entries(userMap)) {
+    const row = table.insertRow();
+    row.insertCell().textContent = username;
+    currentDates.forEach(date => {
+      row.insertCell().textContent = shifts[date] || '';
+    });
+  }
+}
+    
+      
+
+  const table = document.getElementById("shiftTable");
+  table.innerHTML = ''; // リセット
+
+  // ヘッダー行作成
+  const headerRow = table.insertRow();
+  headerRow.insertCell().textContent = "名前";
+
+  const daysInMonth = new Date(year, month, 0).getDate();  // 月末の日付
+  currentDates = [];
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    currentDates.push(dateStr);
+
+    const th = document.createElement('th');
+    th.textContent = `${month}/${day}`;
+    headerRow.appendChild(th);
+  }
+
+  // データ取得
+  fetchShiftsForMonth(year, month);
+}
+
 
     async function submitShift() {
       const username = document.getElementById('username').value;
