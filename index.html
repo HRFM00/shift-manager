@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>クラウドシフト管理</title>
+  <style>
+    table, th, td {
+      border: 1px solid #ccc;
+      border-collapse: collapse;
+      padding: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>クラウド対応 シフト管理</h1>
+  <label>名前: <input type="text" id="username"></label><br>
+  <label>日付: <input type="date" id="date"></label><br>
+  <label>時間: <input type="text" id="shiftTime" placeholder="9:00〜17:00"></label><br>
+  <button onclick="submitShift()">登録</button>
+
+  <h2>シフト一覧</h2>
+  <table id="shiftTable">
+    <tr><th>名前</th><th>日付</th><th>時間</th></tr>
+  </table>
+
+  <script>
+    const SUPABASE_URL = 'https://xxxxx.supabase.co'; // ←置き換えてください
+    const SUPABASE_KEY = 'your-anon-key';             // ←置き換えてください
+
+    async function fetchShifts() {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/shifts?select=*`, {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`
+        }
+      });
+      const data = await res.json();
+      displayShifts(data);
+    }
+
+    function displayShifts(shifts) {
+      const table = document.getElementById("shiftTable");
+      // 既存行を消す
+      table.innerHTML = '<tr><th>名前</th><th>日付</th><th>時間</th></tr>';
+      shifts.forEach(shift => {
+        const row = table.insertRow();
+        row.insertCell().textContent = shift.username;
+        row.insertCell().textContent = shift.date;
+        row.insertCell().textContent = shift.shift_time;
+      });
+    }
+
+    async function submitShift() {
+      const username = document.getElementById('username').value;
+      const date = document.getElementById('date').value;
+      const shiftTime = document.getElementById('shiftTime').value;
+
+      if (!username || !date || !shiftTime) {
+        alert("すべて入力してください");
+        return;
+      }
+
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/shifts`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation'
+        },
+        body: JSON.stringify({ username, date, shift_time: shiftTime })
+      });
+
+      if (res.ok) {
+        alert('シフトを登録しました');
+        fetchShifts();  // 再表示
+      } else {
+        alert('登録に失敗しました');
+      }
+    }
+
+    // 初期表示
+    fetchShifts();
+  </script>
+</body>
+</html>
+
