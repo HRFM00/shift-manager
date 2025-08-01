@@ -108,7 +108,7 @@
     const row = table.insertRow();
     row.insertCell().textContent = username;
     currentDates.forEach(date => {
-      row.insertCell().textContent = shifts[date] || '';
+      row.insertCell().textContent = (shifts[date] || '').replace(/\n/g, '');
     });
   }
 }
