@@ -126,7 +126,7 @@
 <h2>シフト一覧（クリックで時間・色編集）</h2>
 <table id="shiftTable"></table>
 
-<!-- 編集パネル -->
+<!-- 編集パネルの中身部分のみ抜粋 -->
 <div id="editPanel">
   <label>
     開始時間: <input type="time" id="editStartTime" step="1800" />
@@ -134,14 +134,18 @@
   <label>
     終了時間: <input type="time" id="editEndTime" step="1800" />
   </label>
-  <label>
-    色: <input type="color" id="editColor" value="#a2d2ff" />
+  <label style="display:flex; align-items:center; gap:8px;">
+    色:
+    <input type="color" id="editColor" value="#a2d2ff" />
+    <div id="colorSample" style="width:30px; height:30px; border:1px solid #ccc; border-radius:4px;"></div>
   </label>
-  <div style="text-align: right;">
+  <div style="text-align: right; margin-top: 10px;">
     <button onclick="applyEdit()">保存</button>
+    <button onclick="deleteShift()" style="background-color:#e74c3c;">削除</button>
     <button onclick="closeEditPanel()">キャンセル</button>
   </div>
 </div>
+
 
 <script>
   const SUPABASE_URL = 'https://ppmbtoptcxelwewwompk.supabase.co';
@@ -236,35 +240,40 @@
     });
   }
 
-  // 編集パネル表示
-  function openEditPanel(cell) {
-    editingCell = cell;
+ // カラーピッカーの色サンプル更新関数
+const colorSample = document.getElementById('colorSample');
+const editColor = document.getElementById('editColor');
+editColor.addEventListener('input', () => {
+  colorSample.style.backgroundColor = editColor.value;
+});
 
-    // 現状の時間・色を取得
-    let cellData = { shift_time: '', color: '#a2d2ff' };
-    const u = cell.dataset.username;
-    const d = cell.dataset.date;
-    if (userMap[u] && userMap[u][d]) {
-      cellData = userMap[u][d];
-    }
-    // 編集済みデータがあれば優先
-    if (editedShifts[u] && editedShifts[u][d]) {
-      cellData = editedShifts[u][d];
-    }
+// openEditPanel() の中でカラーピッカー色反映後に必ず呼ぶように
+function openEditPanel(cell) {
+  editingCell = cell;
 
-    // 時間分割
-    let startVal = '';
-    let endVal = '';
-    if (cellData.shift_time.includes('〜')) {
-      [startVal, endVal] = cellData.shift_time.split('〜');
-    } else {
-      startVal = cellData.shift_time;
-    }
+  let cellData = { shift_time: '', color: '#a2d2ff' };
+  const u = cell.dataset.username;
+  const d = cell.dataset.date;
+  if (userMap[u] && userMap[u][d]) {
+    cellData = userMap[u][d];
+  }
+  if (editedShifts[u] && editedShifts[u][d]) {
+    cellData = editedShifts[u][d];
+  }
 
-    editStartTime.value = startVal || '09:00';
-    editEndTime.value = endVal || '17:00';
-    editColor.value = cellData.color || '#a2d2ff';
+  let startVal = '';
+  let endVal = '';
+  if (cellData.shift_time.includes('〜')) {
+    [startVal, endVal] = cellData.shift_time.split('〜');
+  } else {
+    startVal = cellData.shift_time;
+  }
 
+  editStartTime.value = startVal || '09:00';
+  editEndTime.value = endVal || '17:00';
+  editColor.value = cellData.color || '#a2d2ff';
+  colorSample.style.backgroundColor = editColor.value;
+  
     // 編集パネルをセルの近くに表示
     const rect = cell.getBoundingClientRect();
     const bodyRect = document.body.getBoundingClientRect();
@@ -284,6 +293,42 @@
     editPanel.style.left = left + 'px';
     editPanel.style.display = 'block';
   }
+  // 削除処理関数
+async function deleteShift() {
+  if (!editingCell) return;
+
+  if (!confirm('このシフトを削除しますか？')) return;
+
+  const username = editingCell.dataset.username;
+  const date = editingCell.dataset.date;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/shifts?username=eq.${encodeURIComponent(username)}&date=eq.${encodeURIComponent(date)}`, {
+      method: 'DELETE',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`
+      }
+    });
+
+    if (res.ok) {
+      alert('シフトを削除しました');
+
+      // userMap と editedShifts の該当データを削除し、テーブルからセルを空に
+      if (userMap[username]) delete userMap[username][date];
+      if (editedShifts[username]) delete editedShifts[username][date];
+      editingCell.textContent = '';
+      editingCell.style.backgroundColor = '';
+
+      closeEditPanel();
+    } else {
+      alert('削除に失敗しました');
+    }
+  } catch (e) {
+    alert('削除中にエラーが発生しました');
+    console.error(e);
+  }
+}
 
   // 編集パネルの保存ボタン
   function applyEdit() {
