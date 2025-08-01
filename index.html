@@ -132,6 +132,13 @@
       }
     }
 
+    window.onload = () => {
+    const now = new Date();
+    document.getElementById('year').value = now.getFullYear();
+    document.getElementById('month').value = now.getMonth() + 1;
+    generateCalendar();
+  };
+
   </script>
 </body>
 </html>
