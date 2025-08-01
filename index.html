@@ -3,65 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap" rel="stylesheet" />
-  <title>クラウドシフト管理 - メニュー切替版</title>
+  <title>クラウドシフト管理 - 直接編集対応版</title>
   <style>
     body {
       font-family: 'Noto Sans', sans-serif;
-      margin: 0; padding: 0;
-      display: flex;
-      height: 100vh;
+      margin: 30px auto;
+      max-width: 900px;
       background: #f9f9f9;
       color: #333;
     }
-    /* サイドバー */
-    #sidebar {
-      width: 180px;
-      background-color: #2980b9;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      padding: 20px;
-      box-sizing: border-box;
-    }
-    #sidebar button {
-      background: none;
-      border: none;
-      color: white;
-      font-size: 16px;
-      padding: 12px 10px;
-      margin-bottom: 10px;
-      cursor: pointer;
-      text-align: left;
-      border-radius: 6px;
-      transition: background-color 0.3s ease;
-    }
-    #sidebar button.active,
-    #sidebar button:hover {
-      background-color: #3498db;
-      font-weight: bold;
-    }
-
-    /* メインエリア */
-    #main {
-      flex-grow: 1;
-      padding: 30px;
-      overflow-y: auto;
-      box-sizing: border-box;
-    }
-
-    /* 画面切替用 */
-    .page {
-      display: none;
-    }
-    .page.active {
-      display: block;
-    }
-
-    /* 共通スタイル（元のスタイルをここにコピー） */
     h1, h2 {
       color: #2c3e50;
     }
-
     input, select, button.form-button {
       font-size: 16px;
       padding: 8px 12px;
@@ -78,11 +31,11 @@
       background-color: #2980b9;
       color: white;
       cursor: pointer;
+      margin-right: 8px;
     }
     button.form-button:hover {
       background-color: #3498db;
     }
-
     table {
       width: 100%;
       border-collapse: collapse;
@@ -90,12 +43,14 @@
       box-shadow: 0 0 8px rgba(0,0,0,0.1);
       border-radius: 6px;
       overflow: hidden;
+      margin-top: 20px;
     }
     th, td {
       padding: 12px 15px;
       border-bottom: 1px solid #ddd;
       text-align: center;
       white-space: nowrap;
+      cursor: default;
     }
     th {
       background-color: #2980b9;
@@ -104,181 +59,233 @@
     tbody tr:hover {
       background-color: #f1f7fc;
     }
+    td.editable {
+      cursor: pointer;
+      background-color: #fefefe;
+    }
+    td.editable:hover {
+      background-color: #eef6fb;
+    }
   </style>
 </head>
 <body>
 
-  <div id="sidebar">
-    <button id="btn-edit" class="active">シフト編集</button>
-    <button id="btn-view">シフト確認</button>
-  </div>
+  <h1>クラウド対応 シフト管理 - 直接編集版</h1>
 
-  <div id="main">
-    <div id="editPage" class="page active">
-      <h1>クラウド対応 シフト管理 - 編集</h1>
+  <label>年: <input type="number" id="year" value="2025"></label>
+  <label>月: <input type="number" id="month" value="8" min="1" max="12"></label>
+  <button class="form-button" onclick="generateCalendar()">カレンダー生成</button><br><br>
 
-      <label>年: <input type="number" id="year" value="2025"></label>
-      <label>月: <input type="number" id="month" value="8" min="1" max="12"></label>
-      <button class="form-button" onclick="generateCalendar()">カレンダー生成</button><br><br>
+  <label>名前: <input type="text" id="username"></label><br>
+  <label>日付: <input type="date" id="date"></label><br>
 
-      <label>名前: <input type="text" id="username"></label><br>
-      <label>日付: <input type="date" id="date"></label><br>
+  <form style="margin-bottom: 10px;">
+    <label>開始時間:
+      <input type="time" id="startTime" step="1800" value="09:00" />
+    </label>
+    <label>終了時間:
+      <input type="time" id="endTime" step="1800" value="17:00" />
+    </label>
+  </form>
 
-      <form>
-        <label>開始時間:
-          <input type="time" id="startTime" step="1800" value="09:00" />
-        </label>
-        <label>終了時間:
-          <input type="time" id="endTime" step="1800" value="17:00" />
-        </label>
-      </form>
+  <button class="form-button" onclick="submitShift()">新規登録</button>
+  <button class="form-button" onclick="saveAllEdits()">編集保存</button>
 
-      <button class="form-button" onclick="submitShift()">登録</button>
-    </div>
+  <h2>シフト一覧（クリックで編集）</h2>
+  <table id="shiftTable">
+    <!-- ヘッダーとデータ行はJavaScriptで生成 -->
+  </table>
 
-    <div id="viewPage" class="page">
-      <h2>シフト確認</h2>
-      <table id="shiftTable">
-        <!-- ヘッダーとデータ行はJavaScriptで生成 -->
-      </table>
-    </div>
-  </div>
+<script>
+  const SUPABASE_URL = 'https://ppmbtoptcxelwewwompk.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwbWJ0b3B0Y3hlbHdld3dvbXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwNjE0NjcsImV4cCI6MjA2OTYzNzQ2N30.Q01_d75sc3j362CMulQwkhtp0SuTzU86X2ElmXPU518';
 
-  <script>
-    // 切り替えボタン要素
-    const btnEdit = document.getElementById('btn-edit');
-    const btnView = document.getElementById('btn-view');
-    const editPage = document.getElementById('editPage');
-    const viewPage = document.getElementById('viewPage');
+  let currentDates = [];
+  let userMap = {}; // { username: { date: shift_time, ... }, ... }
+  let editedShifts = {}; // 変更したデータをためる { username: { date: shift_time } }
 
-    btnEdit.addEventListener('click', () => {
-      btnEdit.classList.add('active');
-      btnView.classList.remove('active');
-      editPage.classList.add('active');
-      viewPage.classList.remove('active');
+  // カレンダー生成＆データ取得
+  async function generateCalendar() {
+    const year = parseInt(document.getElementById('year').value);
+    const month = parseInt(document.getElementById('month').value);
+
+    if (!year || !month || month < 1 || month > 12) {
+      alert("正しい年と月を入力してください");
+      return;
+    }
+
+    // APIからデータ取得
+    const monthStr = String(month).padStart(2,'0');
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/shifts?select=*`, {
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`
+      }
+    });
+    const data = await res.json();
+
+    // 指定年月のデータを抽出
+    const filtered = data.filter(item => item.date.startsWith(`${year}-${monthStr}`));
+
+    // userMap を作成
+    userMap = {};
+    filtered.forEach(item => {
+      if (!userMap[item.username]) userMap[item.username] = {};
+      userMap[item.username][item.date] = item.shift_time;
     });
 
-    btnView.addEventListener('click', () => {
-      btnView.classList.add('active');
-      btnEdit.classList.remove('active');
-      viewPage.classList.add('active');
-      editPage.classList.remove('active');
-      // 確認画面表示時に今の年・月で表示を更新
-      const year = parseInt(document.getElementById('year').value);
-      const month = parseInt(document.getElementById('month').value);
-      generateCalendar(year, month);
+    currentDates = [];
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    // 表生成
+    const table = document.getElementById('shiftTable');
+    table.innerHTML = '';
+
+    // ヘッダー
+    const headerRow = table.insertRow();
+    headerRow.insertCell().textContent = '名前';
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${monthStr}-${String(day).padStart(2,'0')}`;
+      currentDates.push(dateStr);
+      const th = document.createElement('th');
+      th.textContent = `${month}/${day}`;
+      headerRow.appendChild(th);
+    }
+
+    // データ行
+    for (const [username, shifts] of Object.entries(userMap)) {
+      const row = table.insertRow();
+      row.insertCell().textContent = username;
+      currentDates.forEach(date => {
+        const cell = row.insertCell();
+        cell.classList.add('editable');
+        cell.dataset.username = username;
+        cell.dataset.date = date;
+        cell.textContent = shifts[date] || '';
+
+        // 編集可能にするクリックイベント登録
+        cell.addEventListener('click', () => startEdit(cell));
+      });
+    }
+
+    // まだ表示されてないユーザーでも、空で行追加可能にするならここに追加処理
+    editedShifts = {}; // クリア
+  }
+
+  // セル編集開始
+  function startEdit(cell) {
+    if (cell.querySelector('input')) return; // すでに編集中
+
+    const oldValue = cell.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = oldValue;
+    input.style.width = '100%';
+    cell.textContent = '';
+    cell.appendChild(input);
+    input.focus();
+
+    // 編集終了時の保存
+    function finishEdit() {
+      const newValue = input.value.trim();
+      cell.textContent = newValue;
+
+      // editedShifts に保存
+      const username = cell.dataset.username;
+      const date = cell.dataset.date;
+      if (!editedShifts[username]) editedShifts[username] = {};
+      editedShifts[username][date] = newValue;
+    }
+
+    input.addEventListener('blur', finishEdit);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        input.blur();
+      }
+      if (e.key === 'Escape') {
+        cell.textContent = oldValue;
+      }
+    });
+  }
+
+  // 変更をまとめてSupabaseに送信（更新・追加）
+  async function saveAllEdits() {
+    if (Object.keys(editedShifts).length === 0) {
+      alert('変更されたシフトはありません。');
+      return;
+    }
+
+    try {
+      for (const [username, dates] of Object.entries(editedShifts)) {
+        for (const [date, shift_time] of Object.entries(dates)) {
+          // 空文字なら削除扱いにする場合はここで処理可能
+          if (!shift_time) {
+            // 削除処理はAPI側で実装が必要（この例ではスキップ）
+            continue;
+          }
+
+          // SupabaseのUPSERT用POST（既存あれば更新）
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/shifts`, {
+            method: 'POST',
+            headers: {
+              apikey: SUPABASE_KEY,
+              Authorization: `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json',
+              Prefer: 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify({ username, date, shift_time })
+          });
+          if (!res.ok) throw new Error(`更新失敗: ${username} ${date}`);
+        }
+      }
+      alert('編集内容を保存しました');
+      editedShifts = {};
+      generateCalendar(); // 再読み込みで最新表示
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  // 新規登録（既存のsubmitShiftの簡単版）
+  async function submitShift() {
+    const username = document.getElementById('username').value;
+    const date = document.getElementById('date').value;
+    const start = document.getElementById('startTime').value;
+    const end = document.getElementById('endTime').value;
+    const shiftTime = `${start}〜${end}`;
+
+    if (!username || !date || !start || !end) {
+      alert("すべて入力してください");
+      return;
+    }
+
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/shifts`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=representation'
+      },
+      body: JSON.stringify({ username, date, shift_time: shiftTime })
     });
 
-    // Supabase情報（そのまま使ってOK）
-    const SUPABASE_URL = 'https://ppmbtoptcxelwewwompk.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwbWJ0b3B0Y3hlbHdld3dvbXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwNjE0NjcsImV4cCI6MjA2OTYzNzQ2N30.Q01_d75sc3j362CMulQwkhtp0SuTzU86X2ElmXPU518';
-
-    let currentDates = [];
-
-    // カレンダー生成（年・月引数追加）
-    function generateCalendar(yearInput, monthInput) {
-      const year = yearInput || parseInt(document.getElementById('year').value);
-      const month = monthInput || parseInt(document.getElementById('month').value);
-
-      if (!year || !month || month < 1 || month > 12) {
-        alert("正しい年と月を入力してください");
-        return;
-      }
-
-      const table = document.getElementById("shiftTable");
-      table.innerHTML = ''; // リセット
-
-      // ヘッダー行作成
-      const headerRow = table.insertRow();
-      headerRow.insertCell().textContent = "名前";
-
-      const daysInMonth = new Date(year, month, 0).getDate();
-      currentDates = [];
-
-      for (let day = 1; day <= daysInMonth; day++) {
-        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        currentDates.push(dateStr);
-
-        const th = document.createElement('th');
-        th.textContent = `${month}/${day}`;
-        headerRow.appendChild(th);
-      }
-
-      fetchShiftsForMonth(year, month);
-    }
-
-    // データ取得＆表示
-    async function fetchShiftsForMonth(year, month) {
-      const monthStr = String(month).padStart(2,'0');
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/shifts?select=*`, {
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`
-        }
-      });
-      const data = await res.json();
-
-      const filtered = data.filter(item => item.date.startsWith(`${year}-${monthStr}`));
-
-      const userMap = {};
-      filtered.forEach(item => {
-        if (!userMap[item.username]) {
-          userMap[item.username] = {};
-        }
-        userMap[item.username][item.date] = item.shift_time;
-      });
-
-      const table = document.getElementById("shiftTable");
-
-      for (const [username, shifts] of Object.entries(userMap)) {
-        const row = table.insertRow();
-        row.insertCell().textContent = username;
-        currentDates.forEach(date => {
-          row.insertCell().textContent = (shifts[date] || '').replace(/\n/g, '');
-        });
-      }
-    }
-
-    // シフト登録
-    async function submitShift() {
-      const username = document.getElementById('username').value;
-      const date = document.getElementById('date').value;
-      const start = document.getElementById('startTime').value;
-      const end = document.getElementById('endTime').value;
-      const shiftTime = `${start}〜${end}`;
-
-      if (!username || !date || !start || !end) {
-        alert("すべて入力してください");
-        return;
-      }
-
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/shifts`, {
-        method: 'POST',
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json',
-          Prefer: 'return=representation'
-        },
-        body: JSON.stringify({ username, date, shift_time: shiftTime })
-      });
-
-      if (res.ok) {
-        alert('シフトを登録しました');
-        // 編集画面ではなく、確認画面に切り替えて最新表示する例
-        btnView.click();
-      } else {
-        alert('登録に失敗しました');
-      }
-    }
-
-    // ページ読み込み時は編集画面表示＆今月のカレンダー生成
-    window.onload = () => {
-      const now = new Date();
-      document.getElementById('year').value = now.getFullYear();
-      document.getElementById('month').value = now.getMonth() + 1;
+    if (res.ok) {
+      alert('シフトを登録しました');
       generateCalendar();
-    };
-  </script>
+    } else {
+      alert('登録に失敗しました');
+    }
+  }
+
+  // 初期表示
+  window.onload = () => {
+    const now = new Date();
+    document.getElementById('year').value = now.getFullYear();
+    document.getElementById('month').value = now.getMonth() + 1;
+    generateCalendar();
+  };
+</script>
 </body>
 </html>
