@@ -2,25 +2,66 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap" rel="stylesheet">
   <title>クラウドシフト管理</title>
   <style>
-   table {
-    table-layout: auto;
-    width: 100%;
+  body {
+    font-family: 'Noto Sans', sans-serif;
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 0 15px;
+    background: #f9f9f9;
+    color: #333;
   }
-  td, th {
-    white-space: nowrap;   /* ← これが改行防止の本体 */
-    overflow: hidden;
-    text-overflow: ellipsis;  /* はみ出す場合は「…」にする */
-  }
-  table, th, td {
-  border: 1px solid #ccc;  /* 格子線 */
-  border-collapse: collapse;
-  padding: 5px;
-  white-space: nowrap;     /* 改行しない */
-}
 
-  </style>
+  h1, h2 {
+    color: #2c3e50;
+  }
+
+  input, select, button {
+    font-size: 16px;
+    padding: 8px 12px;
+    margin: 5px 0;
+    border: 1.5px solid #ccc;
+    border-radius: 6px;
+    transition: 0.3s;
+  }
+  input:focus, select:focus {
+    border-color: #2980b9;
+    outline: none;
+  }
+  button {
+    background-color: #2980b9;
+    color: white;
+    cursor: pointer;
+  }
+  button:hover {
+    background-color: #3498db;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  th, td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #ddd;
+    text-align: center;
+    white-space: nowrap;
+  }
+  th {
+    background-color: #2980b9;
+    color: white;
+  }
+  tbody tr:hover {
+    background-color: #f1f7fc;
+  }
+</style>
+
 </head>
 <body>
   <h1>クラウド対応 シフト管理</h1>
