@@ -172,9 +172,9 @@
       }
     }).then(res => res.json())
     .then(data => {
-      const shifts = await res.json();
+      
       const monthStr = String(month).padStart(2,'0');
-      const filtered = shifts.filter(shift => shift.shift_time?.startsWith("08:00"));
+      const filtered = data.filter(shift => shift.shift_time && shift.shift_time.startsWith("08:00"));
       userMap = {};
       filtered.forEach(item => {
         if (!userMap[item.username]) userMap[item.username] = {};
