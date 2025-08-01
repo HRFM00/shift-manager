@@ -19,7 +19,14 @@
 
   <label>名前: <input type="text" id="username"></label><br>
   <label>日付: <input type="date" id="date"></label><br>
-  <label>時間: <input type="text" id="shiftTime" placeholder="9:00〜17:00"></label><br>
+  <label>開始時間:
+  <input type="time" id="startTime" step="1800" value="09:00">
+</label>
+
+<label>終了時間:
+  <input type="time" id="endTime" step="1800" value="17:00">
+</label>
+
   <button onclick="submitShift()">登録</button>
 
 
