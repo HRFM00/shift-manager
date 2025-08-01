@@ -13,15 +13,20 @@
 </head>
 <body>
   <h1>クラウド対応 シフト管理</h1>
+  <label>年: <input type="number" id="year" value="2025"></label>
+  <label>月: <input type="number" id="month" value="8" min="1" max="12"></label>
+  <button onclick="generateCalendar()">カレンダー生成</button><br><br>
+
   <label>名前: <input type="text" id="username"></label><br>
   <label>日付: <input type="date" id="date"></label><br>
   <label>時間: <input type="text" id="shiftTime" placeholder="9:00〜17:00"></label><br>
   <button onclick="submitShift()">登録</button>
 
+
   <h2>シフト一覧</h2>
-  <label>年: <input type="number" id="year" value="2025"></label>
-<label>月: <input type="number" id="month" value="8" min="1" max="12"></label>
-<button onclick="generateCalendar()">カレンダー生成</button>
+  <table id="shiftTable">
+    <!-- ヘッダーとデータ行はJavaScriptで生成 -->
+  </table>
 
 
   <script>
