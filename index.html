@@ -408,7 +408,7 @@ async function deleteShift() {
       'Content-Type': 'application/json',
       Prefer: 'resolution=merge-duplicates,return=representation'
     },
-    body: JSON.stringify({ username })
+    body: JSON.stringify({ username, shift_time: "" })
   });
 
   if (res.ok) {
