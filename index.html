@@ -4,11 +4,15 @@
   <meta charset="UTF-8">
   <title>クラウドシフト管理</title>
   <style>
-    table, th, td {
-      border: 1px solid #ccc;
-      border-collapse: collapse;
-      padding: 5px;
-    }
+   table {
+    table-layout: auto;
+    width: 100%;
+  }
+  td, th {
+    white-space: nowrap;   /* ← これが改行防止の本体 */
+    overflow: hidden;
+    text-overflow: ellipsis;  /* はみ出す場合は「…」にする */
+  }
   </style>
 </head>
 <body>
