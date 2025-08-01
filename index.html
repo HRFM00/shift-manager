@@ -174,7 +174,7 @@
     .then(data => {
       
       const monthStr = String(month).padStart(2,'0');
-      const filtered = data.filter(shift => shift.shift_time && shift.shift_time.startsWith("08:00"));
+     const filtered = data.filter(item => item.date.startsWith(`${year}-${monthStr}`));
       userMap = {};
       filtered.forEach(item => {
         if (!userMap[item.username]) userMap[item.username] = {};
