@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap" rel="stylesheet" />
-  <title>クラウドシフト管理 - 直接編集対応版</title>
+  <title>シフト管理 - 時間＋色編集パネル付き</title>
   <style>
     body {
       font-family: 'Noto Sans', sans-serif;
@@ -11,6 +11,7 @@
       max-width: 900px;
       background: #f9f9f9;
       color: #333;
+      position: relative;
     }
     h1, h2 {
       color: #2c3e50;
@@ -51,6 +52,7 @@
       text-align: center;
       white-space: nowrap;
       cursor: default;
+      position: relative;
     }
     th {
       background-color: #2980b9;
@@ -62,50 +64,102 @@
     td.editable {
       cursor: pointer;
       background-color: #fefefe;
+      transition: background-color 0.3s;
     }
     td.editable:hover {
       background-color: #eef6fb;
+    }
+    /* 編集パネル */
+    #editPanel {
+      position: absolute;
+      background: white;
+      border: 1.5px solid #2980b9;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      z-index: 1000;
+      display: none;
+      width: 220px;
+      font-size: 14px;
+    }
+    #editPanel label {
+      display: block;
+      margin-bottom: 8px;
+    }
+    #editPanel input[type="time"],
+    #editPanel input[type="color"] {
+      width: 100%;
+      margin-top: 3px;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+    #editPanel button {
+      margin-right: 8px;
+      font-size: 14px;
+      padding: 6px 12px;
     }
   </style>
 </head>
 <body>
 
-  <h1>クラウド対応 シフト管理 - 直接編集版</h1>
+<h1>クラウド対応 シフト管理 - 時間＋色編集パネル付き</h1>
 
-  <label>年: <input type="number" id="year" value="2025"></label>
-  <label>月: <input type="number" id="month" value="8" min="1" max="12"></label>
-  <button class="form-button" onclick="generateCalendar()">カレンダー生成</button><br><br>
+<label>年: <input type="number" id="year" value="2025"></label>
+<label>月: <input type="number" id="month" value="8" min="1" max="12"></label>
+<button class="form-button" onclick="generateCalendar()">カレンダー生成</button><br><br>
 
-  <label>名前: <input type="text" id="username"></label><br>
-  <label>日付: <input type="date" id="date"></label><br>
+<label>名前: <input type="text" id="username"></label><br>
+<label>日付: <input type="date" id="date"></label><br>
 
-  <form style="margin-bottom: 10px;">
-    <label>開始時間:
-      <input type="time" id="startTime" step="1800" value="09:00" />
-    </label>
-    <label>終了時間:
-      <input type="time" id="endTime" step="1800" value="17:00" />
-    </label>
-  </form>
+<form style="margin-bottom: 10px;">
+  <label>開始時間:
+    <input type="time" id="startTime" step="1800" value="09:00" />
+  </label>
+  <label>終了時間:
+    <input type="time" id="endTime" step="1800" value="17:00" />
+  </label>
+</form>
 
-  <button class="form-button" onclick="submitShift()">新規登録</button>
-  <button class="form-button" onclick="saveAllEdits()">編集保存</button>
+<button class="form-button" onclick="submitShift()">新規登録</button>
+<button class="form-button" onclick="saveAllEdits()">編集保存</button>
 
-  <h2>シフト一覧（クリックで編集）</h2>
-  <table id="shiftTable">
-    <!-- ヘッダーとデータ行はJavaScriptで生成 -->
-  </table>
+<h2>シフト一覧（クリックで時間・色編集）</h2>
+<table id="shiftTable"></table>
+
+<!-- 編集パネル -->
+<div id="editPanel">
+  <label>
+    開始時間: <input type="time" id="editStartTime" step="1800" />
+  </label>
+  <label>
+    終了時間: <input type="time" id="editEndTime" step="1800" />
+  </label>
+  <label>
+    色: <input type="color" id="editColor" value="#a2d2ff" />
+  </label>
+  <div style="text-align: right;">
+    <button onclick="applyEdit()">保存</button>
+    <button onclick="closeEditPanel()">キャンセル</button>
+  </div>
+</div>
 
 <script>
   const SUPABASE_URL = 'https://ppmbtoptcxelwewwompk.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwbWJ0b3B0Y3hlbHdld3dvbXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwNjE0NjcsImV4cCI6MjA2OTYzNzQ2N30.Q01_d75sc3j362CMulQwkhtp0SuTzU86X2ElmXPU518';
 
   let currentDates = [];
-  let userMap = {}; // { username: { date: shift_time, ... }, ... }
-  let editedShifts = {}; // 変更したデータをためる { username: { date: shift_time } }
+  let userMap = {};
+  let editedShifts = {}; // { username: { date: {shift_time, color} } }
 
-  // カレンダー生成＆データ取得
-  async function generateCalendar() {
+  let editingCell = null; // 今編集中のセル
+
+  // 位置調整用の編集パネル要素
+  const editPanel = document.getElementById('editPanel');
+  const editStartTime = document.getElementById('editStartTime');
+  const editEndTime = document.getElementById('editEndTime');
+  const editColor = document.getElementById('editColor');
+
+  function generateCalendar() {
     const year = parseInt(document.getElementById('year').value);
     const month = parseInt(document.getElementById('month').value);
 
@@ -114,102 +168,156 @@
       return;
     }
 
-    // APIからデータ取得
-    const monthStr = String(month).padStart(2,'0');
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/shifts?select=*`, {
+    fetch(`${SUPABASE_URL}/rest/v1/shifts?select=*`, {
       headers: {
         apikey: SUPABASE_KEY,
         Authorization: `Bearer ${SUPABASE_KEY}`
       }
-    });
-    const data = await res.json();
-
-    // 指定年月のデータを抽出
-    const filtered = data.filter(item => item.date.startsWith(`${year}-${monthStr}`));
-
-    // userMap を作成
-    userMap = {};
-    filtered.forEach(item => {
-      if (!userMap[item.username]) userMap[item.username] = {};
-      userMap[item.username][item.date] = item.shift_time;
-    });
-
-    currentDates = [];
-    const daysInMonth = new Date(year, month, 0).getDate();
-
-    // 表生成
-    const table = document.getElementById('shiftTable');
-    table.innerHTML = '';
-
-    // ヘッダー
-    const headerRow = table.insertRow();
-    headerRow.insertCell().textContent = '名前';
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = `${year}-${monthStr}-${String(day).padStart(2,'0')}`;
-      currentDates.push(dateStr);
-      const th = document.createElement('th');
-      th.textContent = `${month}/${day}`;
-      headerRow.appendChild(th);
-    }
-
-    // データ行
-    for (const [username, shifts] of Object.entries(userMap)) {
-      const row = table.insertRow();
-      row.insertCell().textContent = username;
-      currentDates.forEach(date => {
-        const cell = row.insertCell();
-        cell.classList.add('editable');
-        cell.dataset.username = username;
-        cell.dataset.date = date;
-        cell.textContent = shifts[date] || '';
-
-        // 編集可能にするクリックイベント登録
-        cell.addEventListener('click', () => startEdit(cell));
+    }).then(res => res.json())
+    .then(data => {
+      const monthStr = String(month).padStart(2,'0');
+      const filtered = data.filter(item => item.date.startsWith(`${year}-${monthStr}`));
+      userMap = {};
+      filtered.forEach(item => {
+        if (!userMap[item.username]) userMap[item.username] = {};
+        // 色の情報をデータベースに保存していない場合はshift_timeに色コードを埋め込まないといけませんが
+        // ここではshift_timeの後ろに「||色コード」の形式で保持する例にします（適宜DB構造に合わせてください）
+        // 例: "09:00〜17:00||#a2d2ff"
+        let shift_time = item.shift_time || '';
+        let color = '#a2d2ff'; // デフォルト色
+        if (shift_time.includes('||')) {
+          const parts = shift_time.split('||');
+          shift_time = parts[0];
+          color = parts[1];
+        }
+        userMap[item.username][item.date] = { shift_time, color };
       });
-    }
 
-    // まだ表示されてないユーザーでも、空で行追加可能にするならここに追加処理
-    editedShifts = {}; // クリア
-  }
+      currentDates = [];
+      const daysInMonth = new Date(year, month, 0).getDate();
 
-  // セル編集開始
-  function startEdit(cell) {
-    if (cell.querySelector('input')) return; // すでに編集中
+      const table = document.getElementById('shiftTable');
+      table.innerHTML = '';
 
-    const oldValue = cell.textContent;
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = oldValue;
-    input.style.width = '100%';
-    cell.textContent = '';
-    cell.appendChild(input);
-    input.focus();
-
-    // 編集終了時の保存
-    function finishEdit() {
-      const newValue = input.value.trim();
-      cell.textContent = newValue;
-
-      // editedShifts に保存
-      const username = cell.dataset.username;
-      const date = cell.dataset.date;
-      if (!editedShifts[username]) editedShifts[username] = {};
-      editedShifts[username][date] = newValue;
-    }
-
-    input.addEventListener('blur', finishEdit);
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        input.blur();
+      const headerRow = table.insertRow();
+      headerRow.insertCell().textContent = '名前';
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${monthStr}-${String(day).padStart(2,'0')}`;
+        currentDates.push(dateStr);
+        const th = document.createElement('th');
+        th.textContent = `${month}/${day}`;
+        headerRow.appendChild(th);
       }
-      if (e.key === 'Escape') {
-        cell.textContent = oldValue;
+
+      for (const [username, shifts] of Object.entries(userMap)) {
+        const row = table.insertRow();
+        row.insertCell().textContent = username;
+        currentDates.forEach(date => {
+          const cell = row.insertCell();
+          cell.classList.add('editable');
+          cell.dataset.username = username;
+          cell.dataset.date = date;
+
+          let cellData = shifts[date];
+          if (cellData) {
+            cell.textContent = cellData.shift_time;
+            cell.style.backgroundColor = cellData.color;
+          } else {
+            cell.textContent = '';
+            cell.style.backgroundColor = '';
+          }
+
+          cell.addEventListener('click', e => openEditPanel(e.currentTarget));
+        });
       }
+
+      editedShifts = {};
+      closeEditPanel();
     });
   }
 
-  // 変更をまとめてSupabaseに送信（更新・追加）
+  // 編集パネル表示
+  function openEditPanel(cell) {
+    editingCell = cell;
+
+    // 現状の時間・色を取得
+    let cellData = { shift_time: '', color: '#a2d2ff' };
+    const u = cell.dataset.username;
+    const d = cell.dataset.date;
+    if (userMap[u] && userMap[u][d]) {
+      cellData = userMap[u][d];
+    }
+    // 編集済みデータがあれば優先
+    if (editedShifts[u] && editedShifts[u][d]) {
+      cellData = editedShifts[u][d];
+    }
+
+    // 時間分割
+    let startVal = '';
+    let endVal = '';
+    if (cellData.shift_time.includes('〜')) {
+      [startVal, endVal] = cellData.shift_time.split('〜');
+    } else {
+      startVal = cellData.shift_time;
+    }
+
+    editStartTime.value = startVal || '09:00';
+    editEndTime.value = endVal || '17:00';
+    editColor.value = cellData.color || '#a2d2ff';
+
+    // 編集パネルをセルの近くに表示
+    const rect = cell.getBoundingClientRect();
+    const bodyRect = document.body.getBoundingClientRect();
+
+    // 画面内に収まるよう調整
+    let top = rect.bottom + window.scrollY + 5;
+    let left = rect.left + window.scrollX;
+
+    if (left + 240 > window.innerWidth) {
+      left = window.innerWidth - 240 - 10;
+    }
+    if (top + 150 > window.innerHeight + window.scrollY) {
+      top = rect.top + window.scrollY - 150 - 5;
+    }
+
+    editPanel.style.top = top + 'px';
+    editPanel.style.left = left + 'px';
+    editPanel.style.display = 'block';
+  }
+
+  // 編集パネルの保存ボタン
+  function applyEdit() {
+    if (!editingCell) return;
+
+    const username = editingCell.dataset.username;
+    const date = editingCell.dataset.date;
+    const startVal = editStartTime.value;
+    const endVal = editEndTime.value;
+    const colorVal = editColor.value;
+
+    const shift_time = `${startVal}〜${endVal}`;
+
+    // テーブルのセルに反映
+    editingCell.textContent = shift_time;
+    editingCell.style.backgroundColor = colorVal;
+
+    // userMapも更新（画面反映用）
+    if (!userMap[username]) userMap[username] = {};
+    userMap[username][date] = { shift_time, color: colorVal };
+
+    // editedShifts にも記録
+    if (!editedShifts[username]) editedShifts[username] = {};
+    editedShifts[username][date] = { shift_time, color: colorVal };
+
+    closeEditPanel();
+  }
+
+  function closeEditPanel() {
+    editPanel.style.display = 'none';
+    editingCell = null;
+  }
+
+  // 変更をまとめてSupabaseに送信
   async function saveAllEdits() {
     if (Object.keys(editedShifts).length === 0) {
       alert('変更されたシフトはありません。');
@@ -218,14 +326,11 @@
 
     try {
       for (const [username, dates] of Object.entries(editedShifts)) {
-        for (const [date, shift_time] of Object.entries(dates)) {
-          // 空文字なら削除扱いにする場合はここで処理可能
-          if (!shift_time) {
-            // 削除処理はAPI側で実装が必要（この例ではスキップ）
-            continue;
-          }
+        for (const [date, data] of Object.entries(dates)) {
+          let shift_time = data.shift_time;
+          // DB保存用に色も一緒に保存(shift_time||#xxxxxx)の形式
+          shift_time = `${shift_time}||${data.color}`;
 
-          // SupabaseのUPSERT用POST（既存あれば更新）
           const res = await fetch(`${SUPABASE_URL}/rest/v1/shifts`, {
             method: 'POST',
             headers: {
@@ -236,24 +341,25 @@
             },
             body: JSON.stringify({ username, date, shift_time })
           });
+
           if (!res.ok) throw new Error(`更新失敗: ${username} ${date}`);
         }
       }
       alert('編集内容を保存しました');
       editedShifts = {};
-      generateCalendar(); // 再読み込みで最新表示
-    } catch (e) {
+      generateCalendar(); // 最新状態で再描画
+    } catch(e) {
       alert(e.message);
     }
   }
 
-  // 新規登録（既存のsubmitShiftの簡単版）
+  // 新規登録
   async function submitShift() {
     const username = document.getElementById('username').value;
     const date = document.getElementById('date').value;
     const start = document.getElementById('startTime').value;
     const end = document.getElementById('endTime').value;
-    const shiftTime = `${start}〜${end}`;
+    const shiftTime = `${start}〜${end}||#a2d2ff`; // 新規はデフォルト色固定
 
     if (!username || !date || !start || !end) {
       alert("すべて入力してください");
@@ -279,13 +385,21 @@
     }
   }
 
-  // 初期表示
+  // ページロード時に初期化
   window.onload = () => {
     const now = new Date();
     document.getElementById('year').value = now.getFullYear();
     document.getElementById('month').value = now.getMonth() + 1;
     generateCalendar();
   };
+
+  // ページ外クリックで編集パネル閉じる処理
+  document.addEventListener('click', (e) => {
+    if (!editPanel.contains(e.target) && !e.target.classList.contains('editable')) {
+      closeEditPanel();
+    }
+  });
 </script>
+
 </body>
 </html>
