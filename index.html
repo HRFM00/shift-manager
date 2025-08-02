@@ -174,7 +174,8 @@
     .then(data => {
       
       const monthStr = String(month).padStart(2,'0');
-      const filtered = data.filter(shift => shift.shift_time && shift.shift_time.startsWith("08:00"));
+      const filtered = data; // ここでは全件使いたいならフィルタ不要
+
 
 
       userMap = {};
